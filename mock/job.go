@@ -3,6 +3,8 @@ package mock
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"github.com/odpf/optimus/job"
 
 	"github.com/odpf/optimus/core/tree"
@@ -196,19 +198,19 @@ func (j *JobService) Delete(ctx context.Context, c models.NamespaceSpec, job mod
 	return args.Error(0)
 }
 
-func (j *JobService) ReplayDryRun(replayRequest *models.ReplayRequest) (*tree.TreeNode, error) {
+func (j *JobService) ReplayDryRun(replayRequest models.ReplayRequest) (*tree.TreeNode, error) {
 	args := j.Called(replayRequest)
 	return args.Get(0).(*tree.TreeNode), args.Error(1)
 }
 
-func (j *JobService) Replay(ctx context.Context, replayRequest *models.ReplayRequest) (string, error) {
+func (j *JobService) Replay(ctx context.Context, replayRequest models.ReplayRequest) (string, error) {
 	args := j.Called(ctx, replayRequest)
 	return args.Get(0).(string), args.Error(1)
 }
 
-func (j *JobService) GetStatus(ctx context.Context, request *models.ReplayRequest) (*models.ReplayState, error) {
-	args := j.Called(ctx, request)
-	return args.Get(0).(*models.ReplayState), args.Error(1)
+func (j *JobService) GetStatus(ctx context.Context, reqUUID uuid.UUID) (models.ReplayState, error) {
+	args := j.Called(ctx, reqUUID)
+	return args.Get(0).(models.ReplayState), args.Error(1)
 }
 
 type Compiler struct {

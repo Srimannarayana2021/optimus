@@ -276,19 +276,21 @@ func TestAirflow2(t *testing.T) {
 		endDate := "2021-05-25"
 		endDateTime, _ := time.Parse(job.ReplayDateFormat, endDate)
 		batchSize := 2
-		projectSpec := models.ProjectSpec{
-			Name: "test-proj",
-			Config: map[string]string{
-				models.ProjectSchedulerHost: host,
-			},
-			Secret: []models.ProjectSecretItem{
-				{
-					Name:  models.ProjectSchedulerAuth,
-					Value: "admin:admin",
+		jobSpec := models.JobSpec{
+			Name: "sample_select",
+			Project: models.ProjectSpec{
+				Name: "test-proj",
+				Config: map[string]string{
+					models.ProjectSchedulerHost: host,
+				},
+				Secret: []models.ProjectSecretItem{
+					{
+						Name:  models.ProjectSchedulerAuth,
+						Value: "admin:admin",
+					},
 				},
 			},
 		}
-		jobName := "sample_select"
 
 		t.Run("should return dag run status with valid args", func(t *testing.T) {
 			respString := `
@@ -341,7 +343,7 @@ func TestAirflow2(t *testing.T) {
 			}
 
 			air := airflow2.NewScheduler(nil, client)
-			status, err := air.GetDagRunStatus(ctx, projectSpec, jobName, startDateTime, endDateTime, batchSize)
+			status, err := air.GetDagRunStatus(ctx, jobSpec, startDateTime, endDateTime, batchSize)
 
 			assert.Nil(t, err)
 			assert.Equal(t, expectedStatus, status)
@@ -421,7 +423,7 @@ func TestAirflow2(t *testing.T) {
 			}
 
 			air := airflow2.NewScheduler(nil, client)
-			status, err := air.GetDagRunStatus(ctx, projectSpec, jobName, startDateTime, endDateTime, batchSize)
+			status, err := air.GetDagRunStatus(ctx, jobSpec, startDateTime, endDateTime, batchSize)
 
 			assert.Nil(t, err)
 			assert.Equal(t, expectedStatus, status)
@@ -439,7 +441,7 @@ func TestAirflow2(t *testing.T) {
 			}
 
 			air := airflow2.NewScheduler(nil, client)
-			status, err := air.GetDagRunStatus(ctx, projectSpec, jobName, startDateTime, endDateTime, batchSize)
+			status, err := air.GetDagRunStatus(ctx, jobSpec, startDateTime, endDateTime, batchSize)
 
 			assert.NotNil(t, err)
 			assert.Contains(t, err.Error(), fmt.Sprintf("failed to fetch airflow dag runs from %s", dagStatusBatchUrl))

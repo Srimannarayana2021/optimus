@@ -31,6 +31,7 @@ require (
 	github.com/kushsharma/structs v1.1.1
 	github.com/lib/pq v1.9.0
 	github.com/mattn/go-sqlite3 v2.0.1+incompatible // indirect
+	github.com/mitchellh/mapstructure v1.4.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pkg/errors v0.9.1
 	github.com/robfig/cron/v3 v3.0.1

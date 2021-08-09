@@ -51,7 +51,7 @@ type Manager struct {
 	config       ReplayManagerConfig
 
 	// request queue, used by workers
-	requestQ chan *models.ReplayRequest
+	requestQ chan uuid.UUID
 	// request map, used for verifying if a request is
 	// in queue without actually consuming it
 	requestMap map[uuid.UUID]bool
@@ -68,11 +68,15 @@ type Manager struct {
 
 // Replay a request asynchronously, returns a replay id that can
 // can be used to query its status
-func (m *Manager) Replay(ctx context.Context, reqInput *models.ReplayRequest) (string, error) {
+func (m *Manager) Replay(ctx context.Context, reqInput models.ReplayRequest) (string, error) {
 	replaySpecRepo := m.replaySpecRepoFac.New()
 
-	err := m.replayValidator.Validate(ctx, replaySpecRepo, reqInput)
+	replayTree, err := prepareReplayExecutionTree(reqInput)
 	if err != nil {
+		return "", err
+	}
+
+	if err := m.replayValidator.Validate(ctx, replaySpecRepo, reqInput, replayTree); err != nil {
 		return "", err
 	}
 
@@ -84,11 +88,12 @@ func (m *Manager) Replay(ctx context.Context, reqInput *models.ReplayRequest) (s
 
 	// save replay request and mark status as accepted
 	replay := models.ReplaySpec{
-		ID:        uuidOb,
-		Job:       reqInput.Job,
-		StartDate: reqInput.Start,
-		EndDate:   reqInput.End,
-		Status:    models.ReplayStatusAccepted,
+		ID:            uuidOb,
+		Job:           reqInput.Job,
+		StartDate:     reqInput.Start,
+		EndDate:       reqInput.End,
+		Status:        models.ReplayStatusAccepted,
+		ExecutionTree: replayTree,
 	}
 	if err = replaySpecRepo.Insert(&replay); err != nil {
 		return "", err
@@ -98,7 +103,7 @@ func (m *Manager) Replay(ctx context.Context, reqInput *models.ReplayRequest) (s
 	// if full return error indicating that we don't have capacity
 	// to process this request at the moment
 	select {
-	case m.requestQ <- reqInput:
+	case m.requestQ <- reqInput.ID:
 		m.mu.Lock()
 		//request pushed to worker
 		m.requestMap[reqInput.ID] = true
@@ -114,10 +119,10 @@ func (m *Manager) Replay(ctx context.Context, reqInput *models.ReplayRequest) (s
 func (m *Manager) spawnServiceWorker() {
 	defer m.wg.Done()
 
-	for reqInput := range m.requestQ {
-		logger.I("worker picked up the request for ", reqInput.Job.Name)
+	for reqUUID := range m.requestQ {
+		logger.I("worker picked up the request for ", reqUUID)
 		ctx, cancelCtx := context.WithTimeout(context.Background(), m.config.WorkerTimeout)
-		if err := m.replayWorker.Process(ctx, reqInput); err != nil {
+		if err := m.replayWorker.Process(ctx, reqUUID); err != nil {
 			//do something about this error
 			logger.E(errors.Wrap(err, "worker failed to process"))
 			cancelCtx()
@@ -128,7 +133,7 @@ func (m *Manager) spawnServiceWorker() {
 
 // AirflowSyncer to sync for latest replay status
 func (m *Manager) AirflowSyncer() {
-	logger.I("start synchronizing replays...")
+	logger.D("start synchronizing replays...")
 	ctx, cancelCtx := context.WithTimeout(context.Background(), m.config.WorkerTimeout)
 	defer cancelCtx()
 	if err := m.replaySyncer.Sync(ctx, m.config.RunTimeout); err != nil {
@@ -173,7 +178,7 @@ func NewManager(worker ReplayWorker, replaySpecRepoFac ReplaySpecRepoFactory, uu
 		replayWorker:      worker,
 		requestMap:        make(map[uuid.UUID]bool),
 		config:            config,
-		requestQ:          make(chan *models.ReplayRequest, 0),
+		requestQ:          make(chan uuid.UUID, 0),
 		replaySpecRepoFac: replaySpecRepoFac,
 		uuidProvider:      uuidProvider,
 		scheduler:         scheduler,
@@ -186,20 +191,18 @@ func NewManager(worker ReplayWorker, replaySpecRepoFac ReplaySpecRepoFactory, uu
 }
 
 // GetReplay using UUID
-func (m *Manager) GetReplay(replayUUID uuid.UUID) (*models.ReplaySpec, error) {
+func (m *Manager) GetReplay(replayUUID uuid.UUID) (models.ReplaySpec, error) {
 	replaySpecRepo := m.replaySpecRepoFac.New()
-
 	replaySpec, err := replaySpecRepo.GetByID(replayUUID)
 	if err != nil {
-		return nil, err
+		return models.ReplaySpec{}, err
 	}
 
-	return &replaySpec, nil
+	return replaySpec, nil
 }
 
 // GetRunsStatus
-func (m *Manager) GetRunStatus(ctx context.Context, reqInput *models.ReplayRequest, jobName string) ([]models.JobStatus, error) {
-	requestBatchSize := 100
-	batchEndDate := reqInput.End.AddDate(0, 0, 1).Add(time.Second * -1)
-	return m.scheduler.GetDagRunStatus(ctx, reqInput.Project, jobName, reqInput.Start, batchEndDate, requestBatchSize)
+func (m *Manager) GetRunStatus(ctx context.Context, replaySpec models.ReplaySpec, jobSpec models.JobSpec) ([]models.JobStatus, error) {
+	batchEndDate := replaySpec.EndDate.AddDate(0, 0, 1).Add(time.Second * -1)
+	return m.scheduler.GetDagRunStatus(ctx, jobSpec, replaySpec.StartDate, batchEndDate, schedulerBatchSize)
 }

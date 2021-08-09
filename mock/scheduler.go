@@ -42,8 +42,8 @@ func (ms *Scheduler) Clear(ctx context.Context, projSpec models.ProjectSpec, job
 	return args.Error(0)
 }
 
-func (ms *Scheduler) GetDagRunStatus(ctx context.Context, projSpec models.ProjectSpec, jobName string, startDate time.Time,
+func (ms *Scheduler) GetDagRunStatus(ctx context.Context, jobSpec models.JobSpec, startDate time.Time,
 	endDate time.Time, batchSize int) ([]models.JobStatus, error) {
-	args := ms.Called(ctx, projSpec, jobName, startDate, endDate, batchSize)
+	args := ms.Called(ctx, jobSpec, startDate, endDate, batchSize)
 	return args.Get(0).([]models.JobStatus), args.Error(1)
 }

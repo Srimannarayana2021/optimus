@@ -207,15 +207,15 @@ func (a *scheduler) Clear(ctx context.Context, projSpec models.ProjectSpec, jobN
 	return nil
 }
 
-func (a *scheduler) GetDagRunStatus(ctx context.Context, projSpec models.ProjectSpec, jobName string, startDate time.Time,
+func (a *scheduler) GetDagRunStatus(ctx context.Context, jobSpec models.JobSpec, startDate time.Time,
 	endDate time.Time, batchSize int) ([]models.JobStatus, error) {
-	schdHost, ok := projSpec.Config[models.ProjectSchedulerHost]
+	schdHost, ok := jobSpec.Project.Config[models.ProjectSchedulerHost]
 	if !ok {
-		return nil, errors.Errorf("scheduler host not set for %s", projSpec.Name)
+		return nil, errors.Errorf("scheduler host not set for %s", jobSpec.Project.Name)
 	}
-	authToken, ok := projSpec.Secret.GetByName(models.ProjectSchedulerAuth)
+	authToken, ok := jobSpec.Project.Secret.GetByName(models.ProjectSchedulerAuth)
 	if !ok {
-		return []models.JobStatus{}, errors.Errorf("%s secret not configured for project %s", models.ProjectSchedulerAuth, projSpec.Name)
+		return []models.JobStatus{}, errors.Errorf("%s secret not configured for project %s", models.ProjectSchedulerAuth, jobSpec.Project.Name)
 	}
 	schdHost = strings.Trim(schdHost, "/")
 	postURL := fmt.Sprintf("%s/%s", schdHost, dagStatusBatchUrl)
@@ -234,7 +234,7 @@ func (a *scheduler) GetDagRunStatus(ctx context.Context, projSpec models.Project
 		"dag_ids": ["%s"],
 		"execution_date_gte": "%s",
 		"execution_date_lte": "%s"
-		}`, pageOffset, batchSize, jobName, startDate.UTC().Format(airflowDateFormat), endDate.UTC().Format(airflowDateFormat))
+		}`, pageOffset, batchSize, jobSpec.Name, startDate.UTC().Format(airflowDateFormat), endDate.UTC().Format(airflowDateFormat))
 		var jsonStr = []byte(dagRunBatchReq)
 		request, err := http.NewRequest(http.MethodPost, postURL, bytes.NewBuffer(jsonStr))
 		if err != nil {
@@ -261,7 +261,7 @@ func (a *scheduler) GetDagRunStatus(ctx context.Context, projSpec models.Project
 			return nil, errors.Wrapf(err, "json error: %s", string(body))
 		}
 
-		jobStatusPerBatch, err := toJobStatus(responseJson.DagRuns, jobName)
+		jobStatusPerBatch, err := toJobStatus(responseJson.DagRuns, jobSpec.Name)
 		if err != nil {
 			return nil, err
 		}

@@ -272,10 +272,6 @@ func runReplayRequest(l logger, projectName, namespace, jobName, startDate, endD
 }
 
 func replayStatusSubCommand(l logger, conf config.Provider) *cli.Command {
-	var (
-		replayProject string
-	)
-
 	reCmd := &cli.Command{
 		Use:     "status",
 		Short:   "get status of a replay using its ID",
@@ -291,8 +287,6 @@ It takes one argument, replay ID[required] that gets generated when starting a r
 			return nil
 		},
 	}
-	reCmd.Flags().StringVarP(&replayProject, "project", "p", "", "project name of optimus managed ocean repository")
-	reCmd.MarkFlagRequired("project")
 
 	reCmd.RunE = func(cmd *cli.Command, args []string) error {
 		dialTimeoutCtx, dialCancel := context.WithTimeout(context.Background(), OptimusDialTimeout)
@@ -312,8 +306,7 @@ It takes one argument, replay ID[required] that gets generated when starting a r
 
 		runtime := pb.NewRuntimeServiceClient(conn)
 		replayStatusRequest := &pb.GetReplayStatusRequest{
-			Id:          args[0],
-			ProjectName: replayProject,
+			Id: args[0],
 		}
 		replayResponse, err := runtime.GetReplayStatus(replayRequestTimeout, replayStatusRequest)
 		if err != nil {

@@ -223,9 +223,9 @@ func (a *scheduler) Clear(ctx context.Context, projSpec models.ProjectSpec, jobN
 	return nil
 }
 
-func (a *scheduler) GetDagRunStatus(ctx context.Context, projSpec models.ProjectSpec, jobName string, startDate time.Time, endDate time.Time,
+func (a *scheduler) GetDagRunStatus(ctx context.Context, jobSpec models.JobSpec, startDate time.Time, endDate time.Time,
 	batchSize int) ([]models.JobStatus, error) {
-	allJobStatus, err := a.GetJobStatus(ctx, projSpec, jobName)
+	allJobStatus, err := a.GetJobStatus(ctx, jobSpec.Project, jobSpec.Name)
 	if err != nil {
 		return nil, err
 	}

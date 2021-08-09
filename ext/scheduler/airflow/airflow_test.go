@@ -277,12 +277,15 @@ func TestAirflow(t *testing.T) {
 			}
 
 			air := airflow.NewScheduler(nil, client)
-			status, err := air.GetDagRunStatus(ctx, models.ProjectSpec{
-				Name: "test-proj",
-				Config: map[string]string{
-					models.ProjectSchedulerHost: host,
+			status, err := air.GetDagRunStatus(ctx, models.JobSpec{
+				Name: "sample_select",
+				Project: models.ProjectSpec{
+					Name: "test-proj",
+					Config: map[string]string{
+						models.ProjectSchedulerHost: host,
+					},
 				},
-			}, "sample_select", startDateTime, endDateTime, 0)
+			}, startDateTime, endDateTime, 0)
 
 			assert.Nil(t, err)
 			assert.Equal(t, expectedStatus, status)
@@ -321,12 +324,15 @@ func TestAirflow(t *testing.T) {
 			}
 
 			air := airflow.NewScheduler(nil, client)
-			status, err := air.GetDagRunStatus(ctx, models.ProjectSpec{
-				Name: "test-proj",
-				Config: map[string]string{
-					models.ProjectSchedulerHost: host,
+			status, err := air.GetDagRunStatus(ctx, models.JobSpec{
+				Name: "sample_select",
+				Project: models.ProjectSpec{
+					Name: "test-proj",
+					Config: map[string]string{
+						models.ProjectSchedulerHost: host,
+					},
 				},
-			}, "sample_select", startDateTime, endDateTime, 0)
+			}, startDateTime, endDateTime, 0)
 
 			assert.Nil(t, err)
 			assert.Len(t, status, 0)
